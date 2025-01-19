@@ -1,4 +1,4 @@
-# kotlin-notebooks-blog
+# Kotlin Notebooks Blog
 
 Example repo for a Kotlin Notebooks project that uses Postgres as the data source.
 
