@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=demo
+      - POSTGRES_PASSWORD=build
+    volumes:
+    - ./postgres-data:/var/lib/postgresql/data
+    - ./src/main/kotlin/data/create_table.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    ports:
+    - "127.0.0.1:5432:5432"
+volumes:
+  postgres:
