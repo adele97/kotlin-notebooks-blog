@@ -84,7 +84,7 @@ So as a powerlifer myself, I was really curious to know. Is it really better to 
 
 In order to answer this question, we can start by plotting a simple distribution of the number of winners at each number of successful attempts. 
 
-As already mentioned, Loading the whole database into memory to perform your analysis is next to impossible if your dataset is very large. So why not use SQL to only load the data that you need?
+As already mentioned, loading the whole database into memory to perform your analysis is next to impossible if your dataset is very large. So why not use SQL to only load the data that you need?
 
 In order to answer this question, I need to find the lifters who got first place in a meet, and then the number of successful lifts they made. Seems simple enough right?
 
@@ -92,10 +92,10 @@ As datascience practioners, there is no teacher or answer book to tell us whethe
 
 In this case, from my experience in powerlifting I know that
 - In some compeitions, there is only one lifter per weight class. So they will be awarded first place no matter how poorly they do. So setting a minuimum number of entrants per weight class makes sense
-- In the dataset, competitions are unique by meetname and date
-- For a specifc competition, a class is unique not just by weight class, but also by division (eg: juniors, open and masters)
+- In the dataset, competitions are unique by `meetname` and `date`
+- For a specifc competition, a class is unique not just by `weightclass`, but also by `division` (eg: juniors, open and masters)
 
-So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the dataframe library.
+So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the `filterNulls` function in the dataframe library.
 
 Of course you can just write the string directly, but I like to create a function so you can easily modify the query with placeholders. For example to look at a particular year/s or to quickly iterate on the number of entries (lifters) in a weight class. The ability to quickly iterate, learn and discover is a key componment of a successful datascience workflow.
 
@@ -142,7 +142,7 @@ me.event = 'SBD'
   AND me.best3_bench_kg IS NOT NULL
   AND me.best3_squat_kg IS NOT NULL
   AND me.best3_deadlift_kg IS NOT NULL
-  AND place != 'NS';
+  AND place != 'NS'; -- no shows are excluded
     """
 ```
 
@@ -291,6 +291,8 @@ plot(winnersDataFrame) {
 As you can see we have added a title, axis labels, changed the font, centred the title and set some margins. We also set custom axis intervals, or breaks at multiples of 250.
 
 Tip: Kotlin notebooks will apply your chart formatting on top of your IDE theme. So to see what your chart will look like when exported with `.save()` function, you can set `kandyConfig.themeApplied = false`
+
+And so with some small changes our chart now looks like this
 
 ![](../kotlin/notebooks/lets-plot-images/distribution-of-winners-custom-formatting.svg)
 
