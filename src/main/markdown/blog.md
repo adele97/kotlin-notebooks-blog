@@ -174,21 +174,25 @@ With this filtered raw data, we can use the dataframe library to collect our res
 As discussed earlier, a positive value for a lift indicates that is was successful. If it is negative, the lift was attempted but it was ruled a "no lift" and not counted towards the total or final score for the lifter.
 
 ```kotlin notebook
-fun addNumberOfAchievedLifts(df: AnyFrame): AnyFrame {
+val successfulLifts by column<Int>()
+val rowCount by column<Int>()
 
-    return df.add("successful_lifts") {
+fun addNumberOfAchievedLifts(df: DataFrame<Line_14_jupyter._DataFrameType>): AnyFrame {
+
+    return df.add(successfulLifts) {
+        // Count the number of positive values in the specified columns
         listOf(
-            it["squat1kg"], it["squat2kg"], it["squat3kg"],
-            it["bench1kg"], it["bench2kg"], it["bench3kg"],
-            it["deadlift1kg"], it["deadlift2kg"], it["deadlift3kg"]
+            it.squat1kg, it.squat2kg, it.squat3kg,
+            it.bench1kg, it.bench2kg, it.bench3kg,
+            it.deadlift1kg, it.deadlift2kg, it.deadlift3kg
         ).count { value -> (value as Number?)?.toInt() ?: 0 > 0 }
     }
-        .groupBy { it["successful_lifts"] }
+        .groupBy { it[successfulLifts] }
         .aggregate {
-            count() into "row_count"
+            count() into rowCount
         }
-        .drop { it["successful_lifts"]!!.equals(0) || it["successful_lifts"]!!.equals(1) || it["successful_lifts"]!!.equals(2) }
-        .sortBy("successful_lifts")
+        .drop { it[successfulLifts].equals(0) || it[successfulLifts].equals(1) || it[successfulLifts].equals(2) }
+        .sortBy(successfulLifts)
 }
 ```
 
@@ -203,10 +207,16 @@ Here's a simple breakdown of what `addNumberOfAchievedLifts` does:
 4. Removes any anamolous rows where lifters have 0, 1, or 2 successful lifts.
 5. Sorts the remaining data by `successful_lifts` in ascending order.
 
-Now that we have the results we can print the results so we can expect them. The `head` function is not necessary as the dataframe is small, but you can use it out of habit and if ask for more rows than exist in the dataframe it will just return what it has, in this case 7 rows.
+To confirm that the function does as intended, we can print the results and inspect them. The `head` function is not necessary as the dataframe is small, but you can use it out of habit and if ask for more rows than exist in the dataframe it will just return what it has, in this case 7 rows.
 
+```kotlin notebook
+enrichedDataFrame // OR
+enrichedDataFrame.head(10)
+```
 
 ### Plotting your results with Kandy
 
-Now the fun can begin... plotting our results with Kandy
+Now the fun can begin... plotting our results with Kandy 🥳
+
+
 
