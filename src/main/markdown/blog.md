@@ -169,54 +169,129 @@ Now that we have the results we can print the the first 10 rows of the results u
 data.head(10)
 data.describe()
 ```
-With this filtered raw data, we can use the dataframe library to collect our results into a frame of two columns: `positive_count` and `row_count`.
+With this filtered raw data, we can use the dataframe library to collect our results into a frame of two columns: `successfulLifts` and `count`.
 
 As discussed earlier, a positive value for a lift indicates that is was successful. If it is negative, the lift was attempted but it was ruled a "no lift" and not counted towards the total or final score for the lifter.
 
 ```kotlin notebook
 val successfulLifts by column<Int>()
-val rowCount by column<Int>()
+val count by column<Int>()
 
-fun addNumberOfAchievedLifts(df: DataFrame<Line_14_jupyter._DataFrameType>): AnyFrame {
+val columns = listOf(
+    data.squat1kg, data.squat2kg, data.squat3kg,
+    data.bench1kg, data.bench2kg, data.bench3kg,
+    data.deadlift1kg, data.deadlift2kg, data.deadlift3kg
+)
 
+fun addNumberOfSuccessfulLifts(data: DataFrame<Line_15_jupyter._DataFrameType>, firstPlaceOnly: Boolean = true): AnyFrame {
+
+    val df = if (firstPlaceOnly) data.filter { it.place == "1" } else data
+    
     return df.add(successfulLifts) {
-        // Count the number of positive values in the specified columns
-        listOf(
-            it.squat1kg, it.squat2kg, it.squat3kg,
-            it.bench1kg, it.bench2kg, it.bench3kg,
-            it.deadlift1kg, it.deadlift2kg, it.deadlift3kg
-        ).count { value -> (value as Number?)?.toInt() ?: 0 > 0 }
+        columns.count { value -> it[value] > 0 }
     }
         .groupBy { it[successfulLifts] }
         .aggregate {
-            count() into rowCount
+            count() into count
         }
         .drop { it[successfulLifts].equals(0) || it[successfulLifts].equals(1) || it[successfulLifts].equals(2) }
         .sortBy(successfulLifts)
 }
 ```
 
-Here's a simple breakdown of what `addNumberOfAchievedLifts` does:
+Here's a simple breakdown of what `addNumberOfSuccessfulLifts` does:
 
 1. Counts successful lift attempts:
    - It looks at nine columns `squat1kg`, `squat2kg`, `squat3kg`, `bench1kg`, etc.
    - If a value is greater than 0, it's considered a successful attempt.
-   - It counts the number of successful attempts for each row and stores it in a new column called `successful_lifts`.
-2. Groups the data by the number of `successful_lifts`.
-3. Uses the `aggregate` function to count how many rows fall into each `successful_lifts` group (creating a `row_count` column).
+   - It counts the number of successful attempts for each row and stores it in a new column called `successfulLifts`.
+2. Groups the data by the number of `successfulLifts`.
+3. Uses the `aggregate` function to count how many rows fall into each `successfulLifts` group (creating a `count` column).
 4. Removes any anamolous rows where lifters have 0, 1, or 2 successful lifts.
-5. Sorts the remaining data by `successful_lifts` in ascending order.
+5. Sorts the remaining data by `successfulLifts` in ascending order.
 
 To confirm that the function does as intended, we can print the results and inspect them. The `head` function is not necessary as the dataframe is small, but you can use it out of habit and if ask for more rows than exist in the dataframe it will just return what it has, in this case 7 rows.
 
 ```kotlin notebook
-enrichedDataFrame // OR
-enrichedDataFrame.head(10)
+winnersDataFrame // OR
+winnersDataFrame.head(10)
 ```
 
-### Plotting your results with Kandy
+### Plotting your Results with Kandy
 
 Now the fun can begin... plotting our results with Kandy 🥳
 
+Kandy is a declarative plotting library for Kotlin that allows for easy and intuitive data visualisation. And lucky for us that Kandy and DataFrame are a match made in heaven.
+
+Kandy makes use of code blocks to define plot elements, and supports custom styles, themes, and layout adjustments.
+
+Let's start with a simple bar chart to visualise how the distribution of winners at each number of successful lift attempts. All we need to do is specify which column to map to the x axis and which to map top the y axis!
+
+```kotlin notebook
+plot(winnersDataFrame) {
+    bars {
+        x(successfulLifts) 
+        y(count)
+    }
+}
+```
+Which gives us
+
+![](../kotlin/notebooks/lets-plot-images/distribution-of-winners.svg)
+
+Plotting in this simple fashion will make use of default formatting, and will use axes labels that are the same as the data frame accessors. This is not ideal, so we can customise it at bit more. And while it looks like a lot of code, its declarative nature makes it easy to follow.
+
+```kotlin notebook
+kandyConfig.themeApplied = false
+
+plot(winnersDataFrame) {
+
+    bars {
+        x(successfulLifts)
+        y(count) {
+            axis.name = "Number of Winners"
+            axis {
+                breaks(listOf(250,500,750,1000,1250,1500,1750,2000,2250), format = "d")
+            }
+        }
+        fillColor = Color.hex("#fec92e")
+        borderLine {
+            color = Color.hex("#777777")
+            width = 0.5
+        }
+    }
+    layout {
+        title = "Distribution of Winners by Successful Attempts"
+        caption = "data: Open powerlfting meets 2023"
+        size = 600 to 600 // default is 600 to 400
+        xAxisLabel = "Successful Attempts" // alternative to axis.name used for the y axis
+        style {
+            global {
+                text {
+                    fontFamily = FontFamily.custom("Helvetica Neue")
+                }
+                plotCanvas {
+                    title {
+                        hJust = 0.5 // centre the title
+                        margin = Margin(10.0)
+                        fontSize = 17.0
+                    }
+                    caption {
+                        hJust = 1.0 // align right
+                        margin = Margin(10.0, 0.0, 0.0, 0.0)
+                    }
+                    margin = Margin(0.0, 30.0, 0.0, 10.0)
+                }
+            }
+        }
+    }
+}.save("distribution-of-winners-custom-formatting.svg")
+```
+
+As you can see we have added a title, axis labels, changed the font, centred the title and set some margins. We also set custom axis intervals, or breaks at multiples of 250.
+
+Tip: Kotlin notebooks will apply your chart formatting on top of your IDE theme. So to see what your chart will look like when exported with `.save()` function, you can set `kandyConfig.themeApplied = false`
+
+![](../kotlin/notebooks/lets-plot-images/distribution-of-winners-custom-formatting.svg)
 
 
