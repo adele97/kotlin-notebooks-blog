@@ -72,6 +72,141 @@ The `describe()` function gives us some essential information about our powerlif
 
 There are also some other curious things that may not be clear if you do not understand powerlifting
 1. The minimum for the squat, bench and deadlift are all negative. This is how a missed lift is represented in the data set. A missed lift is one that was attempted during the competition but was not completed successfully, therefore it does not contribute to the final score, or total for the lifter. This convention makes the mean and median values from the `describe()` function largely useless
-2. The entries squat4kg, bench4kg and deadlift4kg have a large number of null values. Fourth attempts are are, and do not count toward the TotalKg. They are used for recording single-lift records (eg: deadlift world record) and can only be taken under special circumstances. For most purposes, you can leave these values out of your analyses.
+2. The entries squat4kg, bench4kg and deadlift4kg have a large number of null values. Fourth attempts are rare, and do not count toward the TotalKg. They are used for recording single-lift records (eg: deadlift world record) and can only be taken under special circumstances. For most purposes, you can leave these values out of your analyses.
 
+### Answering Your First Research Question 
+
+In a powerlifting meet, each competitor attempts three lifts: squat, bench press, and deadlift. They get three attempts per lift, for a total of nine attempts. The heaviest successful attempt in each lift is added together for their total score.
+
+Prevailing powerlifting wisdom tells us that successfully completing all lifts in a powerlifting meet, aka going “9 for 9”, is the best way to have a successful meet. Not just in terms of maximising your chances of a spot on the podium, but also for the mental benefits of achieving what you came for.
+
+So as a powerlifer myself, I was really curious to know. Is it really better to go nine for nine when chasing a win? Or is that YOLO deadlift actually a good idea?
+
+In order to answer this question, we can start by plotting a simple distribution of the number of winners at each number of successful attempts. 
+
+As already mentioned, Loading the whole database into memory to perform your analysis is next to impossible if your dataset is very large. So why not use SQL to only load the data that you need?
+
+In order to answer this question, I need to find the lifters who got first place in a meet, and then the number of successful lifts they made. Seems simple enough right?
+
+As datascience practioners, there is no teacher or answer book to tell us whether we are right or wrong. We need to combine our knowldege of the domain with sound data science practices, and be able to defend any conclusions that we make.
+
+In this case, from my experience in powerlifting I know that
+- In some compeitions, there is only one lifter per weight class. So they will be awarded first place no matter how poorly they do. So setting a minuimum number of entrants per weight class makes sense
+- In the dataset, competitions are unique by meetname and date
+- For a specifc competition, a class is unique not just by weight class, but also by division (eg: juniors, open and masters)
+
+So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the dataframe library.
+
+Of course you can just write the string directly, but I like to create a function so you can easily modify the query with placeholders. For example to look at a particular year/s or to quickly iterate on the number of entries (lifters) in a weight class. The ability to quickly iterate, learn and discover is a key componment of a successful datascience workflow.
+
+```kotlin notebook
+fun queryByTimePeriodAndEntries(startYear: String, endYear: String, entries: Int) = 
+    """
+SELECT
+    pd.*
+FROM
+    powerlifting_data pd
+        JOIN
+    (
+        SELECT
+            meet_name,
+            date,
+            weight_class_kg,
+            division,
+            COUNT(*) AS lifter_count
+        FROM
+            powerlifting_data
+        WHERE
+            date BETWEEN '$startYear-01-01' AND '$endYear-12-31'
+        GROUP BY
+            meet_name, date, weight_class_kg, division
+        HAVING
+            COUNT(*) >= $entries
+    ) AS qualified_classes
+    ON me.meet_name = qualified_classes.meet_name
+        AND me.date = qualified_classes.date
+        AND me.weight_class_kg = qualified_classes.weight_class_kg
+        AND me.division = qualified_classes.division
+WHERE
+me.event = 'SBD'
+  AND me.date BETWEEN '$startYear-01-01' AND '$endYear-12-31'
+  AND me.squat1_kg IS NOT NULL
+  AND me.squat2_kg IS NOT NULL
+  AND me.squat3_kg IS NOT NULL
+  AND me.bench1_kg IS NOT NULL
+  AND me.bench2_kg IS NOT NULL
+  AND me.bench3_kg IS NOT NULL
+  AND me.deadlift1_kg IS NOT NULL
+  AND me.deadlift2_kg IS NOT NULL
+  AND me.deadlift3_kg IS NOT NULL
+  AND me.best3_bench_kg IS NOT NULL
+  AND me.best3_squat_kg IS NOT NULL
+  AND me.best3_deadlift_kg IS NOT NULL
+  AND place != 'NS';
+    """
+```
+
+To run our query, we can use the `readSqlQuery` method provided by the dataframe library. In my experience, I found it a little fussy with white space, so I prefer to create a helper function, which you can find in `util.Helpers`. The helper function is called `fetchResults` a lot, and since it does not change often, we can keep the boilerplate out of our notebook by defining it once and importing it. If the helpers class didn't import, make sure you go to the setting for this notebook and `select modules to use in the notebook`"
+
+![](./import-module.png)
+
+
+So first we build the query using by specifying the startYear, endYear and the minimum number of entries (lifters) per event.
+
+Then we use the helper function to open the database connection, run the query then close the connection
+
+```kotlin notebook
+import util.Helpers
+
+val helpers = Helpers()
+
+val query = queryByTimePeriodAndEntries("2023", "2023", 5)
+val data = helpers.fetchResults(query)
+```
+Now that we have the results we can print the the first 10 rows of the results using the `head` function. This is a good habit to get into so you can check as you go that your results make sense, and can identify any errors or curiousities early on. We could also run the `describe` function again to confirm the number of rows, and that we correctly removed null values for our 9 lifts (squat1kg, squat2kg, squat3kg, bench1kg, etc.)
+
+```kotlin notebook
+data.head(10)
+data.describe()
+```
+With this filtered raw data, we can use the dataframe library to collect our results into a frame of two columns: `positive_count` and `row_count`.
+
+As discussed earlier, a positive value for a lift indicates that is was successful. If it is negative, the lift was attempted but it was ruled a "no lift" and not counted towards the total or final score for the lifter.
+
+```kotlin notebook
+fun addNumberOfAchievedLifts(df: AnyFrame): AnyFrame {
+
+    return df.add("successful_lifts") {
+        listOf(
+            it["squat1kg"], it["squat2kg"], it["squat3kg"],
+            it["bench1kg"], it["bench2kg"], it["bench3kg"],
+            it["deadlift1kg"], it["deadlift2kg"], it["deadlift3kg"]
+        ).count { value -> (value as Number?)?.toInt() ?: 0 > 0 }
+    }
+        .groupBy { it["successful_lifts"] }
+        .aggregate {
+            count() into "row_count"
+        }
+        .drop { it["successful_lifts"]!!.equals(0) || it["successful_lifts"]!!.equals(1) || it["successful_lifts"]!!.equals(2) }
+        .sortBy("successful_lifts")
+}
+```
+
+Here's a simple breakdown of what `addNumberOfAchievedLifts` does:
+
+1. Counts successful lift attempts:
+   - It looks at nine columns `squat1kg`, `squat2kg`, `squat3kg`, `bench1kg`, etc.
+   - If a value is greater than 0, it's considered a successful attempt.
+   - It counts the number of successful attempts for each row and stores it in a new column called `successful_lifts`.
+2. Groups the data by the number of `successful_lifts`.
+3. Uses the `aggregate` function to count how many rows fall into each `successful_lifts` group (creating a `row_count` column).
+4. Removes any anamolous rows where lifters have 0, 1, or 2 successful lifts.
+5. Sorts the remaining data by `successful_lifts` in ascending order.
+
+Now that we have the results we can print the results so we can expect them. The `head` function is not necessary as the dataframe is small, but you can use it out of habit and if ask for more rows than exist in the dataframe it will just return what it has, in this case 7 rows.
+
+
+### Plotting your results with Kandy
+
+Now the fun can begin... plotting our results with Kandy
 
