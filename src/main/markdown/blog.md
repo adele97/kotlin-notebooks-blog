@@ -26,7 +26,7 @@ The Kotlin Dataframe library provides a number of convenient functions for acces
 
 The rest of this article is going to assume that you are following along with the [sample project](https://github.com/adele97/kotlin-notebooks-blog). However if you have a database you'd like to explore, you can of course connect it up and try to draw out your own insights!
 
-The sample project looks at [particpation in the sport of powerlifting in 2023](https://www.kaggle.com/datasets/open-powerlifting/powerlifting-database?resource=download&select=openpowerlifting.csv).
+The sample project looks at [participation in the sport of powerlifting in 2023](https://www.kaggle.com/datasets/open-powerlifting/powerlifting-database?resource=download&select=openpowerlifting.csv).
 
 Open up the sample project and take a look at `my-first-notebook.ipynb`
 
@@ -80,13 +80,17 @@ In a powerlifting meet, each competitor attempts three lifts: squat, bench press
 
 Prevailing powerlifting wisdom tells us that successfully completing all lifts in a powerlifting meet, aka going “9 for 9”, is the best way to have a successful meet. Not just in terms of maximising your chances of a spot on the podium, but also for the mental benefits of achieving what you came for.
 
-So as a powerlifer myself, I was really curious to know. Is it really better to go nine for nine when chasing a win? Or is that YOLO deadlift actually a good idea?
+So as a powerlifer myself, I was really curious to know:
 
-In order to answer this question, we can start by plotting a simple distribution of the number of winners at each number of successful attempts. 
+#### _Is it really better to go nine for nine when chasing a win? Or is that YOLO deadlift actually a good idea?_
+
+In order to answer this question, we can start by plotting a simple distribution of the number of winners at each number of successful attempts. That's what we'll be working through in the rest of this post.
+
+#### Collecting Only the Data you Need With SQL
 
 As already mentioned, loading the whole database into memory to perform your analysis is next to impossible if your dataset is very large. So why not use SQL to only load the data that you need?
 
-In order to answer this question, I need to find the lifters who got first place in a meet, and then the number of successful lifts they made. Seems simple enough right?
+In order to answer the research question, I need to find the lifters who got first place in a meet, and then the number of successful lifts they made. Seems simple enough right?
 
 As datascience practioners, there is no teacher or answer book to tell us whether we are right or wrong. We need to combine our knowldege of the domain with sound data science practices, and be able to defend any conclusions that we make.
 
@@ -97,7 +101,7 @@ In this case, from my experience in powerlifting I know that
 
 So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the `filterNulls` function in the dataframe library.
 
-Of course you can just write the string directly, but I like to create a function so you can easily modify the query with placeholders. For example to look at a particular year/s or to quickly iterate on the number of entries (lifters) in a weight class. The ability to quickly iterate, learn and discover is a key componment of a successful datascience workflow.
+You can see that I've written a function to return the string query. Of course you can just write the string directly, but I like to create a function the query is easily modifiable with placeholders. For example to look at a particular year/s or to quickly iterate on the number of entries (lifters) in a weight class. The ability to quickly iterate, learn and discover is a key componment of a successful datascience workflow.
 
 ```kotlin notebook
 fun queryByTimePeriodAndEntries(startYear: String, endYear: String, entries: Int) = 
@@ -146,12 +150,14 @@ me.event = 'SBD'
     """
 ```
 
-To run our query, we can use the `readSqlQuery` method provided by the dataframe library. In my experience, I found it a little fussy with white space, so I prefer to create a helper function, which you can find in `util.Helpers`. The helper function is called `fetchResults` a lot, and since it does not change often, we can keep the boilerplate out of our notebook by defining it once and importing it. If the helpers class didn't import, make sure you go to the setting for this notebook and `select modules to use in the notebook`"
+To run our query, we can use the `readSqlQuery` method provided by the dataframe library. In my experience, I found it a little fussy with white space, so I prefer to create a helper function, which you can find in `util.Helpers`. The helper function is called `fetchResults`. Such a function is likely to be used a lot, across multiple analyses. Further, since it simply executes a string query, it also does not change a lot. This makes it a good candiate to put into an external Helpers class that we can import into the notebook. Externalising functionality like this means we can keep the boilerplate out of our notebook by defining it once and importing it. 
+
+If the helpers class didn't import, make sure you go to the setting for this notebook and `select modules to use in the notebook`". Once you change this setting you will need to restart your Kotlin Notebook Kernal. Then `util.Helpers` will be available to import.
 
 ![](./import-module.png)
 
 
-So first we build the query using by specifying the startYear, endYear and the minimum number of entries (lifters) per event.
+So to start our analysis, we build the query by specifying the startYear, endYear and the minimum number of entries (lifters) per event.
 
 Then we use the helper function to open the database connection, run the query then close the connection
 
@@ -163,7 +169,7 @@ val helpers = Helpers()
 val query = queryByTimePeriodAndEntries("2023", "2023", 3)
 val data = helpers.fetchResults(query)
 ```
-Now that we have the results we can print the the first 10 rows of the results using the `head` function. This is a good habit to get into so you can check as you go that your results make sense, and can identify any errors or curiousities early on. We could also run the `describe` function again to confirm the number of rows, and that we correctly removed null values for our 9 lifts (squat1kg, squat2kg, squat3kg, bench1kg, etc.)
+Now that we have the results we can print the the first 10 rows using the `head` function. This is a good habit to get into so you can check that your results make sense as you go and can identify any errors or curiousities early on. We could also run the `describe` function again to confirm the number of rows, and that we correctly removed null values for our 9 lifts (squat1kg, squat2kg, squat3kg, bench1kg, etc.)
 
 ```kotlin notebook
 data.head(10)
@@ -210,7 +216,11 @@ Here's a simple breakdown of what `addNumberOfSuccessfulLifts` does:
 4. Removes any anamolous rows where lifters have 0, 1, or 2 successful lifts.
 5. Sorts the remaining data by `successfulLifts` in ascending order.
 
-To confirm that the function does as intended, we can print the results and inspect them. The `head` function is not necessary as the dataframe is small, but you can use it out of habit and if ask for more rows than exist in the dataframe it will just return what it has, in this case 7 rows.
+##### Tip! 
+
+You can see that the function signature is `fun addNumberOfSuccessfulLifts(data: DataFrame<Line_15_jupyter._DataFrameType>, firstPlaceOnly: Boolean = true): AnyFrame`. You could make the type of `data` `AnyFrame`. However, by specifying the type like this, we have access to code completion and type checking (rather than using sting literals to access the columns). You can get run time errors by being this specific with the type, but the stack trace will tell you what type it was expecting, so you can update it accordingly. 
+
+To confirm that `addNumberOfSuccessfulLifts` does as intended, we can print the results and inspect them. The `head` function is not necessary here as the dataframe is small, but you can use it out of habit. If you ask for more rows than exist in the dataframe then it will simplt return the entire dataframe.
 
 ```kotlin notebook
 winnersDataFrame // OR
@@ -225,7 +235,7 @@ Kandy is a declarative plotting library for Kotlin that allows for easy and intu
 
 Kandy makes use of code blocks to define plot elements, and supports custom styles, themes, and layout adjustments.
 
-Let's start with a simple bar chart to visualise how the distribution of winners at each number of successful lift attempts. All we need to do is specify which column to map to the x axis and which to map top the y axis!
+Let's start with a simple bar chart to visualise how the distribution of winners at each number of successful lift attempts. All we need to do is specify which column to map to the x axis and which to map to the y axis!
 
 ```kotlin notebook
 plot(winnersDataFrame) {
@@ -290,13 +300,15 @@ plot(winnersDataFrame) {
 
 As you can see we have added a title, axis labels, changed the font, centred the title and set some margins. We also set custom axis intervals, or breaks at multiples of 500.
 
-Tip: Kotlin notebooks will apply your chart formatting on top of your IDE theme. So to see what your chart will look like when exported with `.save()` function, you can set `kandyConfig.themeApplied = false`
+#### Tip! 
 
-And so with some small changes our chart now looks like this
+Kotlin notebooks will apply your chart formatting on top of your IDE theme. So to see what your chart will look like when exported with `.save()` function, you can set `kandyConfig.themeApplied = false`
+
+And so with these small changes applied our chart now looks like this
 
 ![](../kotlin/notebooks/lets-plot-images/distribution-of-winners-custom-formatting.svg)
 
-Looking at this chart it may be tempting to conclude that actually going "8 for 9" is the superiror strategy in a powerlifting meet. This stumped me for a few minutes as well until I realised that lifters that go 9/9 are a special breed, and are probably just simply out-numbered. So let's do the visualisation again to answer the question:
+Looking at this chart it may be tempting to conclude that actually going "8 for 9" is the superiror strategy in a powerlifting meet, since there are the most winners in this group. This stumped me for a few minutes as well until I realised that lifters that go 9/9 are a special breed, and are probably just simply out-numbered. So let's do the visualisation again to answer the question:
 
 #### _Out of all lifters that achieve X number of successful attempts, what percentage of those get first place?_
 
@@ -306,7 +318,7 @@ You may have spotted already the `firstPlaceOnly` boolean in the `addNumberOfSuc
 val allLiftersDataFrame = addNumberOfSuccessfulLifts(data, false)
 ```
 
-We can now merge the two dataframes `winnersDataFrame` and `allLiftersDataFrame` into a new dataframe `dfRatioWinners` and calculate the proportion of winners at each number of successful attempts.
+Now we merge the two dataframes `winnersDataFrame` and `allLiftersDataFrame` into a new dataframe `dfRatioWinners` and calculate the proportion of winners at each number of successful attempts.
 
 ```kotlin notebook
 val dfRatioWinners =
@@ -388,6 +400,11 @@ plotRatioWinners
 ```
 ![](../kotlin/notebooks/lets-plot-images/percetage-of-first-places.svg)
 
+Now that we have removed the bias due to different group sizes, the story in now a little clearer and lends support to the hypothesis that going "9 for 9" increases your chances of winning.
+Although there were far more winners in 2023 that went 8/9 over 9/9, when we look at the percentage of lifters that went 9/9 that won, we see that the rate of winning is 26.5% in the 9/9 group compared to 25.8% in the 8/9 group.
+
+We can now create a multiplot to make comparison of the two charts a little easier.
+
 ### Comparing Multiple Plots with plotBunch
 
 To compare both charts you can use `plotBunch` or `plotGrid`. I prefer `plotBunch` as I find it provides a bit more control as you can specify exactly how you want your charts arranged. 
@@ -402,8 +419,7 @@ plotBunch {
 
 ### Answering the Research Question
 
-Now that we have removed the bias due to different group sizes, the story in now a little clearer and lends support to the hypothesis that going "9 for 9" increases your chances of winning.
-Although there were far more winners in 2023 that went 8/9 over 9/9, when we look at the percentage of lifters that went 9/9 that won, we see that the rate of winning is 26.5% in the 9/9 group compared to 25.8% in the 8/9 group.
+So with this simple analysis, we did show that there is a higher rate of winning in the 9/9 group.
 
 So is this it? Does this mean we can say for certain that going "9 for 9" is always better? Not quite. We can still improve our analysis by
 
@@ -411,14 +427,22 @@ So is this it? Does this mean we can say for certain that going "9 for 9" is alw
 - Trying to see if this finding holds for 5 or 10 competitors per weight class
 - Trying to find if this holds at the elite level (elite level can be inferrred by filtering on the value in the `federation` column. For example if the federation is 'IPF', then these are international competitions)
 
-Data Science is as much about story telling as it is about data. Call me old fashioned, but what we are calling AI in 2025 is really just supercharged data science. The models and methods driving the development of LLMs have their foundation in data science.
+Data Science is as much about story telling as it is about data. Call me old-fashioned, but what we are calling AI in 2025 is really just supercharged data science. The models and methods driving the development of LLMs have their foundation in data science.
 This is why it's important to be critical of these models and the stories that they are telling you. Ask any seasoned data scientist and they will tell you just how easy it is to make a mistake and draw an incorrect conclusion.
+
+Just because the tools exist and are easy to use, doesn't mean that they are always going to give you the right answer.
 
 The way that we can guard against costly mistakes is not just a sound understanding of data science basics, but also by understanding the domain that we are operating in. 
 
+### Data Science Mindset
+
 Earlier I mentioned the importance of having a quick and iterative workflow. The reason for this is so that we can run multiple simulations quickly, test assumptions and get feedback. To really build a deep and intimate knowledge of our data set.
 
-Kotlin Notebooks, DataFrame and Kandy work seemlessly together to allow us to do just that. By working in a familiar development environment of IntelliJ, and connecting to an external data source, we can start to interact with our data right away. Learning and discovering within minutes.
+When it comes to data science, iterating quickly is of more importance than your code being production ready. It's ok to "cheat" a little, write code you're maybe a little bit ashamed of. If it helps you iterate quickly, then being a little bit ashamed is a trade off worth making.
+
+Kotlin Notebooks, DataFrame and Kandy priovide a nice balance here. They work seemlessly together to allow us to balance discovery with features we enjoy as backend developers like type-checking and code completion. Further, by working in a familiar development environment of IntelliJ, and connecting to an external data source, we can start to interact with our data right away. Learning and discovering within minutes.
+
+So what are you waiting for? What is something you are curious about? Is there a dataset for it? If so, you already have the tools to start discovering 💪
 
 
 
