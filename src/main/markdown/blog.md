@@ -300,7 +300,7 @@ Looking at this chart it may be tempting to conclude that actually going "8 for 
 
 #### _Out of all lifters that achieve X number of successful attempts, what percentage of those get first place?_
 
-You may have spotted already the `firstPlaceOnly` boolean in the `addNumberOfSuccessfulLifts` function. By default it is set to true. Now we can call the function again on our dataframe with `firstPlaceOnly` set to false, so that we get the distribution of successful attempts for all lifters
+You may have spotted already the `firstPlaceOnly` boolean in the `addNumberOfSuccessfulLifts` function. By default it is set to true. Now we can call the function again on our dataframe with `firstPlaceOnly` set to `false`, so that we get the distribution of successful attempts for all lifters
 
 ```kotlin notebook
 val allLiftersDataFrame = addNumberOfSuccessfulLifts(data, false)
@@ -332,7 +332,7 @@ dfRatioWinners
 
 ![](./dfRatioWinners.png)
 
-Plotting this with Kandy, allows us to identify any trend a little easier. You can see this time I've assinged the plot to a variable. I prefer this as it provides a little more flexibility in saving the plot or making use of multiplots such as `plotBunch` or `plotGrid`
+Plotting this with Kandy, allows us to identify any trend a little easier. You can see this time I've assinged the plot to a variable. I prefer this as it provides a little more flexibility in saving the plot or making use of multiplots such as `plotBunch` or `plotGrid` (more on this later)
 
 ```kotlin notebook
 val plotRatioWinners = plot(dfRatioWinners) {
@@ -388,8 +388,9 @@ plotRatioWinners
 ```
 ![](../kotlin/notebooks/lets-plot-images/percetage-of-first-places.svg)
 
+### Comparing Multiple Plots with plotBunch
 
-Tip! to compare both charts you can use `plotBunch`. I find it provides a bit more control than `plotGrid` as you can specify exactly how you want your charts arranged 
+To compare both charts you can use `plotBunch` or `plotGrid`. I prefer `plotBunch` as I find it provides a bit more control as you can specify exactly how you want your charts arranged. 
 
 ```kotlin notebook
 plotBunch {
@@ -398,5 +399,26 @@ plotBunch {
 }
 ```
 ![](../kotlin/notebooks/lets-plot-images/plot-bunch-example.svg)
+
+### Answering the Research Question
+
+Now that we have removed the bias due to different group sizes, the story in now a little clearer and lends support to the hypothesis that going "9 for 9" increases your chances of winning.
+Although there were far more winners in 2023 that went 8/9 over 9/9, when we look at the percentage of lifters that went 9/9 that won, we see that the rate of winning is 26.5% in the 9/9 group compared to 25.8% in the 8/9 group.
+
+So is this it? Does this mean we can say for certain that going "9 for 9" is always better? Not quite. We can still improve our analysis by
+
+- Trying to replicate this finding over a longer time eg: 5 years or 10 years
+- Trying to see if this finding holds for 5 or 10 competitors per weight class
+- Trying to find if this holds at the elite level (elite level can be inferrred by filtering on the value in the `federation` column. For example if the federation is 'IPF', then these are international competitions)
+
+Data Science is as much about story telling as it is about data. Call me old fashioned, but what we are calling AI in 2025 is really just supercharged data science. The models and methods driving the development of LLMs have their foundation in data science.
+This is why it's important to be critical of these models and the stories that they are telling you. Ask any seasoned data scientist and they will tell you just how easy it is to make a mistake and draw an incorrect conclusion.
+
+The way that we can guard against costly mistakes is not just a sound understanding of data science basics, but also by understanding the domain that we are operating in. 
+
+Earlier I mentioned the importance of having a quick and iterative workflow. The reason for this is so that we can run multiple simulations quickly, test assumptions and get feedback. To really build a deep and intimate knowledge of our data set.
+
+Kotlin Notebooks, DataFrame and Kandy work seemlessly together to allow us to do just that. By working in a familiar development environment of IntelliJ, and connecting to an external data source, we can start to interact with our data right away. Learning and discovering within minutes.
+
 
 
