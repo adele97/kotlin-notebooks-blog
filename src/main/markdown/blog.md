@@ -160,7 +160,7 @@ import util.Helpers
 
 val helpers = Helpers()
 
-val query = queryByTimePeriodAndEntries("2023", "2023", 5)
+val query = queryByTimePeriodAndEntries("2023", "2023", 3)
 val data = helpers.fetchResults(query)
 ```
 Now that we have the results we can print the the first 10 rows of the results using the `head` function. This is a good habit to get into so you can check as you go that your results make sense, and can identify any errors or curiousities early on. We could also run the `describe` function again to confirm the number of rows, and that we correctly removed null values for our 9 lifts (squat1kg, squat2kg, squat3kg, bench1kg, etc.)
@@ -251,7 +251,7 @@ plot(winnersDataFrame) {
         y(count) {
             axis.name = "Number of Winners"
             axis {
-                breaks(listOf(250,500,750,1000,1250,1500,1750,2000,2250), format = "d")
+                breaks(listOf(500,1000,1500,2000,2500,3000,3500,4000,4500,5000), format = "d")
             }
         }
         fillColor = Color.hex("#fec92e")
@@ -263,7 +263,7 @@ plot(winnersDataFrame) {
     layout {
         title = "Distribution of Winners by Successful Attempts"
         caption = "data: Open powerlfting meets 2023"
-        size = 600 to 600 // default is 600 to 400
+        size = 600 to 300 // default is 600 to 400
         xAxisLabel = "Successful Attempts" // alternative to axis.name used for the y axis
         style {
             global {
@@ -280,7 +280,7 @@ plot(winnersDataFrame) {
                         hJust = 1.0 // align right
                         margin = Margin(10.0, 0.0, 0.0, 0.0)
                     }
-                    margin = Margin(0.0, 30.0, 0.0, 10.0)
+                    margin = Margin(0.0, 30.0, 0.0, 5.0)
                 }
             }
         }
@@ -288,12 +288,115 @@ plot(winnersDataFrame) {
 }.save("distribution-of-winners-custom-formatting.svg")
 ```
 
-As you can see we have added a title, axis labels, changed the font, centred the title and set some margins. We also set custom axis intervals, or breaks at multiples of 250.
+As you can see we have added a title, axis labels, changed the font, centred the title and set some margins. We also set custom axis intervals, or breaks at multiples of 500.
 
 Tip: Kotlin notebooks will apply your chart formatting on top of your IDE theme. So to see what your chart will look like when exported with `.save()` function, you can set `kandyConfig.themeApplied = false`
 
 And so with some small changes our chart now looks like this
 
 ![](../kotlin/notebooks/lets-plot-images/distribution-of-winners-custom-formatting.svg)
+
+Looking at this chart it may be tempting to conclude that actually going "8 for 9" is the superiror strategy in a powerlifting meet. This stumped me for a few minutes as well until I realised that lifters that go 9/9 are a special breed, and are probably just simply out-numbered. So let's do the visualisation again to answer the question:
+
+#### _Out of all lifters that achieve X number of successful attempts, what percentage of those get first place?_
+
+You may have spotted already the `firstPlaceOnly` boolean in the `addNumberOfSuccessfulLifts` function. By default it is set to true. Now we can call the function again on our dataframe with `firstPlaceOnly` set to false, so that we get the distribution of successful attempts for all lifters
+
+```kotlin notebook
+val allLiftersDataFrame = addNumberOfSuccessfulLifts(data, false)
+```
+
+We can now merge the two dataframes `winnersDataFrame` and `allLiftersDataFrame` into a new dataframe `dfRatioWinners` and calculate the proportion of winners at each number of successful attempts.
+
+```kotlin notebook
+val dfRatioWinners =
+    dataFrameOf(winnersDataFrame.rename(count).into(winners).columns() + allLiftersDataFrame.select(count).rename(count).into(allLifters).columns())
+        .add(ratioWinners) {
+            (it[winners].toDouble() / it[allLifters].toDouble()) * 100.0
+        }
+```
+
+Here's what the code does
+
+- Renames the `count` column in winnersDataFrame to `winners`
+- Selects and renames `count` in allLiftersDataFrame to `allLifters`. The select is important as otherwise you are attempting to add the column `successfulLifts` into your new dataframe twice, which will throw a runtime error.
+- Combines both into the new dataframe.
+- Adds a new column `ratioWinners` 
+- Calculates `winners` as a percentage of `alllifters`. They are each casted to a double so that the division of `Int` is not rounded to zero before being multipled by 100 (don't ask me how long it took me to spot this bug the first time 😉)
+
+If we print the resulting dataframe we have
+
+```kotlin notebook
+dfRatioWinners
+```
+
+![](./dfRatioWinners.png)
+
+Plotting this with Kandy, allows us to identify any trend a little easier. You can see this time I've assinged the plot to a variable. I prefer this as it provides a little more flexibility in saving the plot or making use of multiplots such as `plotBunch` or `plotGrid`
+
+```kotlin notebook
+val plotRatioWinners = plot(dfRatioWinners) {
+
+    bars {
+        x(successfulLifts) 
+        y(ratioWinners) {
+            axis.name = "percentage"
+            axis {
+                breaks(listOf(5,10,15,20, 25), format = "{.0f}%")
+            }
+        }
+        fillColor = Color.hex("#fec92e")
+        borderLine {
+            color = Color.hex("#777777")
+            width = 0.5
+        }
+    }
+    layout {
+        title = "Percentage of First Places by Successful Lifts"
+        subtitle = "at least 3 lifters in weight class"
+        caption = "data: Open powerlfting meets 2023"
+        size = 600 to 300
+        xAxisLabel = "Successful Attempts"
+        style {
+            global {
+                text {
+                    fontFamily = FontFamily.custom("Helvetica Neue")
+                }
+                plotCanvas {
+                    title {
+                        hJust = 0.5
+                        margin = Margin(10.0)
+                        fontSize = 14.0
+                    }
+                    subtitle {
+                        hJust = 0.5
+                        margin = Margin(5.0)
+                        fontSize = 11.0
+                    }
+                    caption {
+                        hJust = 1.0
+                        margin = Margin(10.0, 0.0, 0.0, 0.0)
+                    }
+                    margin = Margin(5.0, 30.0, 20.0, 5.0)
+                }
+            }
+        }
+    }
+}
+
+plotRatioWinners
+```
+![](../kotlin/notebooks/lets-plot-images/percetage-of-first-places.svg)
+
+
+Tip! to compare both charts you can use `plotBunch`. I find it provides a bit more control than `plotGrid` as you can specify exactly how you want your charts arranged 
+
+```kotlin notebook
+plotBunch {
+    add(plotWinners, 0, 0, 600, 300) // top x position, top y position, width, height
+    add(plotRatioWinners, 0, 300, 600, 300) // top y position set to height of chart on top (300)
+}
+```
+![](../kotlin/notebooks/lets-plot-images/plot-bunch-example.svg)
 
 
