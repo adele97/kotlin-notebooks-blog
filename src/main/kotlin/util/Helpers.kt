@@ -29,6 +29,3 @@ class Helpers {
         return df
     }
 }
-
-///#%% md
-//Since we will be fetching data often, and the function does not change a lot, we can use the self-defined `fetchResults` function from the `Helpers` class in the `util` package to import the data into the notebook as dataframe. This keeps the boilerplate out of our notebook. If the `Helpers` class didn't import to the notebook, make sure you go to the settings for this notebook and `select modules to use in the notebook`

@@ -40,7 +40,7 @@ First, we import the Kotlin Dataframe and Kandy libraries.
 [Kandy](https://kotlin.github.io/kandy/welcome.html) is an open-source plotting library for Kotlin based on the [lets-plot visalisation library](https://lets-plot.org/). Data is nice, but seeing is believing. Kandy helps us turn rows and columns full of numbners into actionable insights.
 
 
-But before we can get plotting, we need data. We connect to the containerised Postgres database using a url, username and password. Then we can fetch the contents of the `powerlifting_data` table
+But before we can get plotting, we need data. We connect to the containerised Postgres database using a url, username and password. Then we can fetch the contents of the `powerlifting_data` table using [readSqlTable](https://kotlin.github.io/dataframe/readsqldatabases.html)
 
 ```kotlin notebook
 val dbConfig = DbConnectionConfig(URL, USER_NAME, PASSWORD)
@@ -53,7 +53,7 @@ Importing the entire table does defeat the purpose of creating a database to beg
 
 In order to do data science well, you need to understand your data set. Taking the time getting to know your data set helps you avoid making incorrect assumptions and drawing (costly) incorrect conclusions. I cannot stress enough the importance of this step! This is why I started my data science journey with powerlifing. It's a domain I have experienced first hand and it is much more than a data set to me. Let me show you what I mean. 
 
-We can use the `describe()` function from Kotlin Dataframe on the fetched data.
+We can use the [describe](https://kotlin.github.io/dataframe/describe.html) function from Kotlin Dataframe on the fetched data.
 
 ```kotlin notebook
 data.describe()
@@ -99,7 +99,7 @@ In this case, from my experience in powerlifting I know that
 - In the dataset, competitions are unique by `meetname` and `date`
 - For a specifc competition, a class is unique not just by `weightclass`, but also by `division` (eg: juniors, open and masters)
 
-So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the `filterNulls` function in the dataframe library.
+So that leads to the following query. You will see that I've filtered out null results in the query, but of course you could do that directly the dataframe using the [filter](https://kotlin.github.io/dataframe/filter.html) function in the dataframe library.
 
 You can see that I've written a function to return the string query. Of course you can just write the string directly, but I like to create a function the query is easily modifiable with placeholders. For example to look at a particular year/s or to quickly iterate on the number of entries (lifters) in a weight class. The ability to quickly iterate, learn and discover is a key componment of a successful datascience workflow.
 
@@ -177,19 +177,43 @@ data.describe()
 ```
 With this filtered raw data, we can use the dataframe library to collect our results into a frame of two columns: `successfulLifts` and `count`.
 
-As discussed earlier, a positive value for a lift indicates that is was successful. If it is negative, the lift was attempted but it was ruled a "no lift" and not counted towards the total or final score for the lifter.
+In order to take advantage of Kotlin's strong typing as we process our data using Kotlin Dataframe, we can define the schema `LifterData` with the `@DataSchema` annotation.
+
+So we can define our data as follows:
 
 ```kotlin notebook
-val successfulLifts by column<Int>()
-val count by column<Int>()
+import org.jetbrains.kotlinx.dataframe.annotations.*
+
+@DataSchema
+interface LifterData {
+    val place: String
+    val squat1kg: Double
+    val squat2kg: Double
+    val squat3kg: Double
+    val bench1kg: Double
+    val bench2kg: Double
+    val bench3kg: Double
+    val deadlift1kg: Double
+    val deadlift2kg: Double
+    val deadlift3kg: Double
+}
+
+val successfulLifts = column<Int>("successfulLifts")
+val count = column<Int>("count")
 
 val columns = listOf(
     data.squat1kg, data.squat2kg, data.squat3kg,
     data.bench1kg, data.bench2kg, data.bench3kg,
     data.deadlift1kg, data.deadlift2kg, data.deadlift3kg
 )
+```
 
-fun addNumberOfSuccessfulLifts(data: DataFrame<Line_15_jupyter._DataFrameType>, firstPlaceOnly: Boolean = true): AnyFrame {
+As discussed earlier, a positive value for a lift indicates that is was successful. If it is negative, the lift was attempted but it was ruled a "no lift" and not counted towards the total or final score for the lifter.
+
+So using this knowledge, and the data structure we have defined, we can create a function `addNumberOfSuccessfulLifts` to modify our raw data returned from our SQL query.
+
+```kotlin notebook
+fun addNumberOfSuccessfulLifts(data: DataFrame<LifterData>, firstPlaceOnly: Boolean = true): AnyFrame {
 
     val df = if (firstPlaceOnly) data.filter { it.place == "1" } else data
     
@@ -200,7 +224,7 @@ fun addNumberOfSuccessfulLifts(data: DataFrame<Line_15_jupyter._DataFrameType>, 
         .aggregate {
             count() into count
         }
-        .drop { it[successfulLifts].equals(0) || it[successfulLifts].equals(1) || it[successfulLifts].equals(2) }
+        .drop { it[successfulLifts] in listOf(0, 1, 2) }
         .sortBy(successfulLifts)
 }
 ```
@@ -211,16 +235,20 @@ Here's a simple breakdown of what `addNumberOfSuccessfulLifts` does:
    - It looks at nine columns `squat1kg`, `squat2kg`, `squat3kg`, `bench1kg`, etc.
    - If a value is greater than 0, it's considered a successful attempt.
    - It counts the number of successful attempts for each row and stores it in a new column called `successfulLifts`.
-2. Groups the data by the number of `successfulLifts`.
-3. Uses the `aggregate` function to count how many rows fall into each `successfulLifts` group (creating a `count` column).
-4. Removes any anamolous rows where lifters have 0, 1, or 2 successful lifts.
-5. Sorts the remaining data by `successfulLifts` in ascending order.
+2. [Groups the data](https://kotlin.github.io/dataframe/groupby.html) by the number of `successfulLifts`.
+3. Uses the [aggregate](https://kotlin.github.io/dataframe/groupby.html#aggregation) function to count how many rows fall into each `successfulLifts` group (creating a `count` column).
+4. [Removes any anamolous rows](https://kotlin.github.io/dataframe/drop.html) where lifters have 0, 1, or 2 successful lifts.
+5. [Sorts the remaining data](https://kotlin.github.io/dataframe/sortby.html) by `successfulLifts` in ascending order.
 
-##### Tip! 
+#### Tip!
 
-You can see that the function signature is `fun addNumberOfSuccessfulLifts(data: DataFrame<Line_15_jupyter._DataFrameType>, firstPlaceOnly: Boolean = true): AnyFrame`. You could make the type of `data` `AnyFrame`. However, by specifying the type like this, we have access to code completion and type checking (rather than using sting literals to access the columns). You can get run time errors by being this specific with the type, but the stack trace will tell you what type it was expecting, so you can update it accordingly. 
+To call `addNumberOfSuccessfulLifts` without typing errors we need to cast `data` to the data schema `LifterData` we defined above
 
-To confirm that `addNumberOfSuccessfulLifts` does as intended, we can print the results and inspect them. The `head` function is not necessary here as the dataframe is small, but you can use it out of habit. If you ask for more rows than exist in the dataframe then it will simplt return the entire dataframe.
+```kotlin notebook
+val winnersDataFrame = addNumberOfSuccessfulLifts(data.cast<LifterData>())
+```
+
+After calling `addNumberOfSuccessfulLifts` we can confirm that it does as intended, by printing the results and inspecting them. The `head` function is not necessary here as the dataframe is small, but you can use it out of habit. If you ask for more rows than exist in the dataframe then it will simply return the entire dataframe.
 
 ```kotlin notebook
 winnersDataFrame // OR
@@ -330,10 +358,10 @@ val dfRatioWinners =
 
 Here's what the code does
 
-- Renames the `count` column in winnersDataFrame to `winners`
-- Selects and renames `count` in allLiftersDataFrame to `allLifters`. The select is important as otherwise you are attempting to add the column `successfulLifts` into your new dataframe twice, which will throw a runtime error.
+- [Renames](https://kotlin.github.io/dataframe/rename.html) the `count` column in winnersDataFrame to `winners`
+- [Selects](https://kotlin.github.io/dataframe/select.html) and renames `count` in allLiftersDataFrame to `allLifters`. The select is important as otherwise you are attempting to add the column `successfulLifts` into your new dataframe twice, which will throw a runtime error.
 - Combines both into the new dataframe.
-- Adds a new column `ratioWinners` 
+- [Adds a new column](https://kotlin.github.io/dataframe/adddf.html) `ratioWinners` 
 - Calculates `winners` as a percentage of `alllifters`. They are each casted to a double so that the division of `Int` is not rounded to zero before being multipled by 100 (don't ask me how long it took me to spot this bug the first time 😉)
 
 If we print the resulting dataframe we have
@@ -344,7 +372,7 @@ dfRatioWinners
 
 ![](./dfRatioWinners.png)
 
-Plotting this with Kandy, allows us to identify any trend a little easier. You can see this time I've assinged the plot to a variable. I prefer this as it provides a little more flexibility in saving the plot or making use of multiplots such as `plotBunch` or `plotGrid` (more on this later)
+Plotting this with Kandy, allows us to identify any trend a little easier. You can see this time I've assinged the plot to a variable. I prefer this as it provides a little more flexibility in saving the plot or making use of multiplots such as `plotBunch` (more on this later)
 
 ```kotlin notebook
 val plotRatioWinners = plot(dfRatioWinners) {
@@ -407,7 +435,7 @@ We can now create a multiplot to make comparison of the two charts a little easi
 
 ### Comparing Multiple Plots with plotBunch
 
-To compare both charts you can use `plotBunch` or `plotGrid`. I prefer `plotBunch` as I find it provides a bit more control as you can specify exactly how you want your charts arranged. 
+To compare both charts you can use [plotBunch](https://kotlin.github.io/kandy/plot-bunch-guide.html). `plotBunch` is really handy as you can specify exactly how you want your charts arranged. 
 
 ```kotlin notebook
 plotBunch {
