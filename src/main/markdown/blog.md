@@ -177,7 +177,7 @@ data.describe()
 ```
 With this filtered raw data, we can use the dataframe library to collect our results into a frame of two columns: `successfulLifts` and `count`.
 
-In order to take advantage of Kotlin's strong typing as we process our data using Kotlin Dataframe, we can define the schema `LifterData` with the `@DataSchema` annotation.
+In order to take advantage of Kotlin's strong typing as we process our data using Kotlin Dataframe, we can define the schema `LifterData` with the [`@DataSchema` annotation](https://kotlin.github.io/dataframe/schemas.html).
 
 So we can define our data as follows:
 
