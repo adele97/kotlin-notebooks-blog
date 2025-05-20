@@ -1,4 +1,14 @@
-# My First Toe Dip into Data Science with PostgreSQL, Kotlin Notebooks, Dataframe and Kandy
+# Exploring Data Science with Kotlin: A Powerlifting Case Study
+
+TL;DR
+
+This blog post uses a dataset from the [sport of powerlifting](https://en.wikipedia.org/wiki/Powerlifting) to get you up and running Kotlin Notebooks, Dataframe and Kandy, using a PostgreSQL data source for your analysis. It covers
+- Data science basics
+- Connecting an external data source to your Kotlin Notebook
+- Accessing and manipulating the data with Dataframe
+- Plotting your findings with the Kandy Library
+
+The [sample project](https://github.com/adele97/kotlin-notebooks-blog) contains everything you need to create your first plot!
 
 Have you ever wanted to play around with a data set, but the thought of setting up a python development environment seemed like too much of a hassle?
 
@@ -471,6 +481,13 @@ When it comes to data science, iterating quickly is of more importance than your
 Kotlin Notebooks, DataFrame and Kandy priovide a nice balance here. They work seemlessly together to allow us to balance discovery with features we enjoy as backend developers like type-checking and code completion. Further, by working in a familiar development environment of IntelliJ, and connecting to an external data source, we can start to interact with our data right away. Learning and discovering within minutes.
 
 So what are you waiting for? What is something you are curious about? Is there a dataset for it? If so, you already have the tools to start discovering 💪
+
+### Where to from here?
+
+- If you haven't already, clone the [sample repo](https://github.com/adele97/kotlin-notebooks-blog). A bonus analysis can be found at the bottom of `my-first-research-question.ipynb`
+- Inspired to investigate a topic of your own? Find a dataset about a topic you care about, [Kaggle](https://www.kaggle.com/datasets) is a great place to start. No matter your chosen topic, remember to stay curious and iterate quickly!
+- Apply this in your day job. What are you or "the business" curious about? Connect an existing SQL data source and see what insights can be found.
+- Use the [sample repo](https://github.com/adele97/kotlin-notebooks-blog) as a source of inspiration for your analysis and let me know what you find. You can find me on Bluesky [@97adele.bsky.social](https://bsky.app/profile/97adele.bsky.social)
 
 
 
